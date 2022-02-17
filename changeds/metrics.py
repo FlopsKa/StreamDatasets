@@ -39,7 +39,6 @@ def true_positives(true_cps, reported_cps, T=10):
 
 def false_positives(true_cps, reported_cps, T=10):
     tps = true_positives(true_cps, reported_cps, T)
-    print(tps)
     return len(reported_cps) - tps
 
 
