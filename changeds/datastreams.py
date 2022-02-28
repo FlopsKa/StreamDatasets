@@ -134,6 +134,32 @@ class SortedCIFAR10(ChangeStream, RegionalChangeStream):
     def _is_change(self) -> bool:
         return self._change_points[self.sample_idx]
 
+class SortedCIFAR10_RGB(ChangeStream, RegionalChangeStream):
+    def __init__(self, preprocess=None):
+        (x_train, y_train), (x_test, y_test) = keras.datasets.cifar10.load_data()
+        x_train = x_train.reshape((len(x_train), x_train.shape[1] * x_train.shape[2] * x_train.shape[3]))
+        x_test = x_test.reshape((len(x_test), x_test.shape[1] * x_test.shape[2] * x_test.shape[3]))
+     
+        x = np.vstack([x_train, x_test])
+        y = np.hstack([y_train.reshape(-1), y_test.reshape(-1)])
+        sorted_indices = np.argsort(y)
+        x = x[sorted_indices]
+        y = y[sorted_indices]
+
+        if preprocess:
+            x = preprocess(x)
+        self._change_points = np.diff(y, prepend=y[0]).astype(bool)
+        super(SortedCIFAR10_RGB, self).__init__(data=x, y=y)
+
+    def id(self) -> str:
+        return "sCIFAR_RGB"
+
+    def change_points(self):
+        return self._change_points
+
+    def _is_change(self) -> bool:
+        return self._change_points[self.sample_idx]
+
 
 class RandomOrderCIFAR10(RandomOrderChangeStream, RegionalChangeStream):
     def __init__(self, num_changes: int = 100, preprocess=None):
