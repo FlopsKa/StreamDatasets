@@ -62,3 +62,8 @@ def preprocess_hipe() -> pd.DataFrame:
     phase_count_cols = [col for col in data.columns if "PhaseCount" in col]
     return data.drop(phase_count_cols, axis=1)
 
+
+data_dir = os.path.join(os.path.split(__file__)[0], "..", "data")
+har_data_dir = os.path.join(data_dir, "har")
+gas_sensor_data_dir = os.path.join(data_dir, "gas")  # get the data from https://datahub.io/machine-learning/gas-drift
+
