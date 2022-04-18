@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 """In all functions, we assume that `true_cps` and `reported_cps` are sorted from lowest to highest."""
 
@@ -29,6 +30,27 @@ def mean_until_detection(true_cps, reported_cps):
             reported_cps.remove(reported_cp)
             break
     return dist / detected_cps if detected_cps > 0 else np.nan
+
+
+def mean_cp_detection_time_error(true_cps, reported_cps, reported_detection_delays):
+    reported_cps = reported_cps.copy()
+    delay_errors = []
+    for cpi, true_cp in enumerate(true_cps):
+        next_cp = true_cps[cpi + 1] if cpi < len(true_cps) - 1 else np.infty
+        for rcpi, reported_cp in enumerate(reported_cps):
+            if reported_cp <= true_cp:
+                continue
+            if reported_cp >= next_cp:
+                continue
+            delay = reported_detection_delays[rcpi]
+            if pd.isna(delay):
+                delay_errors.append(np.nan)
+            else:
+                error = reported_cp - true_cp - delay
+                delay_errors.append(abs(error))
+                reported_cps.remove(reported_cp)
+            break
+    return np.nanmean(delay_errors)
 
 
 def true_positives(true_cps, reported_cps, T=10):

@@ -71,7 +71,10 @@ class ClassificationStream(ChangeStream, ABC):
 
 class RandomOrderChangeStream(ChangeStream, ABC):
     @staticmethod
-    def create_changes(X, y, num_concepts: int, shuffle_within_concept: bool = False):
+    def create_changes(X, y, num_concepts: int, n_per_concept: int, shuffle_within_concept: bool = False):
+        sampled_indices = np.random.choice(range(len(y)), size=min(n_per_concept, len(y)), replace=False)
+        X = X[sampled_indices]
+        y = y[sampled_indices]
         sorted_indices = np.argsort(y)
         diffs = np.diff(y[sorted_indices], prepend=y[sorted_indices][0]).astype(int)
         new_concept_indices = [i for i in range(len(diffs)) if diffs[i] == 1]
@@ -110,12 +113,14 @@ class RandomOrderChangeStream(ChangeStream, ABC):
 class GradualChangeStream(ChangeStream, ABC):
 
     def __init__(self, X, y, num_concepts: int = 100, drift_length: int = 100, stretch: bool = False,
-                 shuffle_within_concept: bool = False, preprocess = False):
+                 shuffle_within_concept: bool=False, preprocess=False, seed=0):
+        self.rng = np.random.default_rng(seed)
         self.stretch = stretch
         self.dl = drift_length
         self.num_concepts = num_concepts
         X, y, change_points = GradualChangeStream.create_changes(X, y, num_concepts=num_concepts,
                                                                  drift_length=drift_length, stretch=stretch,
+                                                                 rng=self.rng,
                                                                  shuffle_within_concept=shuffle_within_concept)
         self._change_points = change_points
         if preprocess:
@@ -140,7 +145,8 @@ class GradualChangeStream(ChangeStream, ABC):
         return "G"
 
     @staticmethod
-    def create_changes(X, y, num_concepts: int, drift_length: int, stretch: bool, shuffle_within_concept: bool = False):
+    def create_changes(X, y, num_concepts: int, drift_length: int, stretch: bool,
+                       rng, shuffle_within_concept: bool = False):
         """
         Creates gradual changes
         :param X: The data
@@ -156,14 +162,14 @@ class GradualChangeStream(ChangeStream, ABC):
         new_concept_indices = [i for i in range(len(diffs)) if diffs[i] == 1]
         concepts = np.split(sorted_indices, new_concept_indices)
         if shuffle_within_concept:
-            [np.random.shuffle(concept) for concept in concepts]
+            [rng.shuffle(concept) for concept in concepts]
         drift_points = []
         data_stream_indices = []
         for concept_index in range(num_concepts):
             this_drift_length = (concept_index + 1) / num_concepts * drift_length if stretch else drift_length
-            random_concept = np.random.choice(range(len(concepts)))
+            random_concept = rng.choice(range(len(concepts)))
             random_concept = concepts[random_concept]
-            np.random.shuffle(random_concept)
+            rng.shuffle(random_concept)
             if len(data_stream_indices) == 0:
                 data_stream_indices = random_concept.tolist()
             else:
@@ -172,7 +178,7 @@ class GradualChangeStream(ChangeStream, ABC):
                     tail = data_stream_indices[-half_drift_length:]
                     head = random_concept[half_drift_length:]
                     for i in range(half_drift_length):
-                        if np.random.uniform() < (i + 1) / this_drift_length:
+                        if rng.uniform() < (i + 1) / this_drift_length:
                             current_index = half_drift_length - i
                             t = tail[-current_index]
                             h = head[current_index]
